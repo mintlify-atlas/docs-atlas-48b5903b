@@ -1,0 +1,516 @@
+---
+title: Deployment Process
+description: Docker container deployment process, port mapping, and production best practices
+---
+
+## Deployment Overview
+
+The deployment stage runs the containerized Node.js application using Docker and exposes it on port 80 for external access.
+
+## Deployment Command
+
+The pipeline executes this Docker command to deploy the application:
+
+```bash
+docker run --name Jenkins -d -p 80:3000 nodejs-demo-app:latest
+```
+
+### Command Breakdown
+
+<ParamField path="docker run" type="command">
+  Creates and starts a new container from an image
+</ParamField>
+
+<ParamField path="--name Jenkins" type="string">
+  Names the container "Jenkins" for easy identification and management
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Runs the container in detached mode (background process)
+</ParamField>
+
+<ParamField path="-p 80:3000" type="port-mapping">
+  Maps host port 80 to container port 3000
+</ParamField>
+
+<ParamField path="nodejs-demo-app:latest" type="image">
+  The Docker image to deploy (built in the Build stage)
+</ParamField>
+
+## Port Mapping Architecture
+
+### Port Configuration
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Host Machine                        │
+│                                                          │
+│  Port 80 (External)  ──────────────────────┐            │
+│                                             │            │
+│  ┌────────────────────────────────────────▼──────────┐  │
+│  │          Docker Container "Jenkins"               │  │
+│  │                                                    │  │
+│  │  Port 3000 (Internal) ◄─── Node.js App            │  │
+│  │                                                    │  │
+│  │  CMD: node index.js                               │  │
+│  │  Image: nodejs-demo-app:latest                    │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Port Details
+
+<Tabs>
+  <Tab title="Container Port 3000">
+    ## Internal Container Port
+
+    **Port**: 3000
+
+    **Purpose**: The Node.js application listens on this port inside the container.
+
+    **Configuration**: Defined in the Dockerfile:
+
+    ```dockerfile
+    EXPOSE 3000
+    ```
+
+    **Application Code**: The Express app binds to port 3000:
+
+    ```javascript
+    const express = require('express');
+    const app = express();
+    app.get('/', (req, res) => res.send('Hello, Elevate Labs, This is After pushing code commits to GitHub'));
+    app.listen(3000, () => console.log('App running on port 3000'));
+    ```
+
+    <Info>
+    This port is only accessible from within the container unless explicitly mapped to a host port.
+    </Info>
+  </Tab>
+
+  <Tab title="Host Port 80">
+    ## External Host Port
+
+    **Port**: 80
+
+    **Purpose**: Allows external users to access the application via standard HTTP.
+
+    **Access URLs**:
+    - `http://your-server-ip:80`
+    - `http://your-server-ip` (port 80 is default)
+    - `http://localhost:80` (local access)
+
+    **Why Port 80?**
+    - Standard HTTP port
+    - No need to specify port in URL
+    - Professional production deployment
+
+    <Warning>
+    Port 80 requires root/administrator privileges. Ensure Jenkins has proper permissions or use an alternative port like 8080.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Deployment Pipeline Stage
+
+The complete Deploy stage in the Jenkinsfile:
+
+```groovy
+stage('Deploy') {
+    steps {
+        echo 'Deploying Docker container...'
+        sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        echo 'App deployed on port 80!'
+    }
+}
+```
+
+### Environment Variables
+
+The `$IMAGE_NAME` variable is defined in the pipeline environment:
+
+```groovy
+environment {
+    IMAGE_NAME = 'nodejs-demo-app'
+}
+```
+
+This expands to `nodejs-demo-app:latest` during execution.
+
+## Container Management
+
+### Check Container Status
+
+<CodeGroup>
+```bash List Running Containers
+docker ps
+```
+
+```bash Filter by Name
+docker ps | grep Jenkins
+```
+
+```bash Detailed Information
+docker inspect Jenkins
+```
+</CodeGroup>
+
+### View Container Logs
+
+<CodeGroup>
+```bash All Logs
+docker logs Jenkins
+```
+
+```bash Follow Logs
+docker logs -f Jenkins
+```
+
+```bash Last 100 Lines
+docker logs --tail 100 Jenkins
+```
+</CodeGroup>
+
+### Stop and Remove Container
+
+<CodeGroup>
+```bash Stop Container
+docker stop Jenkins
+```
+
+```bash Remove Container
+docker rm Jenkins
+```
+
+```bash Force Remove Running Container
+docker rm -f Jenkins
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Common Deployment Issues
+
+<AccordionGroup>
+  <Accordion title="Port 80 Already in Use">
+    **Error**: `bind: address already in use`
+
+    **Solution 1**: Check what's using port 80
+    ```bash
+    sudo lsof -i :80
+    # or
+    sudo netstat -tlnp | grep :80
+    ```
+
+    **Solution 2**: Use a different port
+    ```bash
+    docker run --name Jenkins -d -p 8080:3000 $IMAGE_NAME:latest
+    ```
+
+    **Solution 3**: Stop the conflicting service
+    ```bash
+    # For Apache
+    sudo systemctl stop apache2
+
+    # For Nginx
+    sudo systemctl stop nginx
+    ```
+  </Accordion>
+
+  <Accordion title="Container Name Conflict">
+    **Error**: `container name "Jenkins" already in use`
+
+    **Cause**: A container with the same name already exists.
+
+    **Solution 1**: Remove the existing container
+    ```bash
+    docker rm -f Jenkins
+    ```
+
+    **Solution 2**: Use a unique name
+    ```bash
+    docker run --name Jenkins-$(date +%s) -d -p 80:3000 $IMAGE_NAME:latest
+    ```
+
+    **Solution 3**: Add cleanup to pipeline
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh 'docker rm -f Jenkins || true'
+            sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Container Starts but Application Not Accessible">
+    **Troubleshooting Steps**:
+
+    1. **Check container is running**:
+       ```bash
+       docker ps | grep Jenkins
+       ```
+
+    2. **Check container logs**:
+       ```bash
+       docker logs Jenkins
+       ```
+       Look for: `App running on port 3000`
+
+    3. **Test from inside container**:
+       ```bash
+       docker exec Jenkins curl http://localhost:3000
+       ```
+
+    4. **Test from host**:
+       ```bash
+       curl http://localhost:80
+       ```
+
+    5. **Check firewall rules**:
+       ```bash
+       sudo ufw status
+       sudo ufw allow 80/tcp
+       ```
+  </Accordion>
+
+  <Accordion title="Permission Denied Errors">
+    **Error**: `permission denied while trying to connect to the Docker daemon`
+
+    **Cause**: Jenkins user doesn't have Docker permissions.
+
+    **Solution**:
+    ```bash
+    # Add Jenkins user to docker group
+    sudo usermod -aG docker jenkins
+
+    # Restart Jenkins
+    sudo systemctl restart jenkins
+
+    # Verify
+    sudo -u jenkins docker ps
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment Best Practices
+
+### Enhanced Deployment Configuration
+
+<Tabs>
+  <Tab title="With Auto-Restart">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh '''docker run --name Jenkins -d \
+              -p 80:3000 \
+              --restart=unless-stopped \
+              $IMAGE_NAME:latest'''
+        }
+    }
+    ```
+
+    **Restart Policies**:
+    - `no`: Never restart (default)
+    - `on-failure`: Restart only on failure
+    - `always`: Always restart
+    - `unless-stopped`: Restart unless manually stopped
+  </Tab>
+
+  <Tab title="With Health Checks">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh '''docker run --name Jenkins -d \
+              -p 80:3000 \
+              --health-cmd="curl -f http://localhost:3000 || exit 1" \
+              --health-interval=30s \
+              --health-timeout=10s \
+              --health-retries=3 \
+              $IMAGE_NAME:latest'''
+        }
+    }
+    ```
+
+    **Check Health Status**:
+    ```bash
+    docker inspect --format='{{.State.Health.Status}}' Jenkins
+    ```
+  </Tab>
+
+  <Tab title="With Resource Limits">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh '''docker run --name Jenkins -d \
+              -p 80:3000 \
+              --memory="512m" \
+              --memory-swap="1g" \
+              --cpus="1.0" \
+              --pids-limit=100 \
+              $IMAGE_NAME:latest'''
+        }
+    }
+    ```
+
+    **Resource Limits**:
+    - `--memory`: Maximum memory
+    - `--memory-swap`: Total memory (RAM + swap)
+    - `--cpus`: CPU allocation
+    - `--pids-limit`: Max processes
+  </Tab>
+
+  <Tab title="With Environment Variables">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh '''docker run --name Jenkins -d \
+              -p 80:3000 \
+              -e NODE_ENV=production \
+              -e PORT=3000 \
+              -e LOG_LEVEL=info \
+              $IMAGE_NAME:latest'''
+        }
+    }
+    ```
+
+    **Environment Variables**:
+    - Set runtime configuration
+    - Override default settings
+    - Pass secrets (use Docker secrets in production)
+  </Tab>
+
+  <Tab title="With Volume Mounts">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            sh '''docker run --name Jenkins -d \
+              -p 80:3000 \
+              -v /var/log/app:/app/logs \
+              -v /etc/app-config:/app/config:ro \
+              $IMAGE_NAME:latest'''
+        }
+    }
+    ```
+
+    **Volume Benefits**:
+    - Persistent data storage
+    - Log collection
+    - Configuration management
+    - Data sharing between containers
+  </Tab>
+</Tabs>
+
+### Complete Production Deploy Stage
+
+```groovy
+stage('Deploy') {
+    steps {
+        echo 'Stopping existing container if running...'
+        sh 'docker rm -f Jenkins || true'
+        
+        echo 'Deploying new container...'
+        sh '''docker run --name Jenkins -d \
+          -p 80:3000 \
+          --restart=unless-stopped \
+          --memory="512m" \
+          --cpus="1.0" \
+          --health-cmd="curl -f http://localhost:3000 || exit 1" \
+          --health-interval=30s \
+          --health-timeout=10s \
+          --health-retries=3 \
+          -e NODE_ENV=production \
+          $IMAGE_NAME:latest'''
+        
+        echo 'Waiting for application to start...'
+        sh 'sleep 10'
+        
+        echo 'Verifying deployment...'
+        sh 'curl -f http://localhost:80 || exit 1'
+        
+        echo 'App deployed successfully on port 80!'
+    }
+}
+```
+
+## Security Considerations
+
+<Warning>
+**Production Security Checklist**:
+
+- Run containers as non-root user
+- Use read-only filesystem where possible
+- Implement network policies
+- Scan images for vulnerabilities
+- Use secrets management (not environment variables)
+- Enable Docker Content Trust
+- Keep base images updated
+- Limit container capabilities
+</Warning>
+
+### Secure Deployment Example
+
+```groovy
+stage('Deploy') {
+    steps {
+        sh '''docker run --name Jenkins -d \
+          -p 80:3000 \
+          --restart=unless-stopped \
+          --user 1000:1000 \
+          --read-only \
+          --tmpfs /tmp:rw,noexec,nosuid \
+          --cap-drop=ALL \
+          --cap-add=NET_BIND_SERVICE \
+          --security-opt=no-new-privileges \
+          $IMAGE_NAME:latest'''
+    }
+}
+```
+
+## Monitoring and Verification
+
+### Post-Deployment Checks
+
+<Steps>
+  <Step title="Container Status">
+    ```bash
+    docker ps | grep Jenkins
+    ```
+    Verify container is running
+  </Step>
+  
+  <Step title="Application Logs">
+    ```bash
+    docker logs Jenkins
+    ```
+    Check for startup messages: "App running on port 3000"
+  </Step>
+  
+  <Step title="Health Check">
+    ```bash
+    curl http://localhost:80
+    ```
+    Should return: "Hello, Elevate Labs, This is After pushing code commits to GitHub"
+  </Step>
+  
+  <Step title="Resource Usage">
+    ```bash
+    docker stats Jenkins --no-stream
+    ```
+    Monitor CPU and memory usage
+  </Step>
+</Steps>
+
+## Related Documentation
+
+<CardGroup cols={3}>
+  <Card title="Pipeline Overview" icon="diagram-project" href="/pipeline/overview">
+    Complete CI/CD workflow
+  </Card>
+  <Card title="Pipeline Stages" icon="layer-group" href="/pipeline/stages">
+    Detailed stage documentation
+  </Card>
+  <Card title="Jenkinsfile" icon="file-code" href="/pipeline/jenkinsfile">
+    Complete pipeline code
+  </Card>
+</CardGroup>

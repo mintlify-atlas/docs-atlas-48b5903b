@@ -1,0 +1,204 @@
+---
+title: 'Docker Commands'
+description: 'Docker commands used in pipeline with all flags and options'
+---
+
+## Overview
+
+This reference documents all Docker commands used in the Jenkins CI/CD pipeline, including build and run commands with their complete flags and options.
+
+## Docker Build Command
+
+The Docker build command creates a Docker image from the Dockerfile in the repository.
+
+### Command Syntax
+
+```bash
+docker build -t $IMAGE_NAME:latest .
+```
+
+### Full Example
+
+```bash
+docker build -t nodejs-demo-app:latest .
+```
+
+### Build Command Parameters
+
+<ParamField path="-t" type="string" required>
+  Tag the image with a name and optional tag in the format `name:tag`. In this pipeline, the image is tagged as `nodejs-demo-app:latest`.
+</ParamField>
+
+<ParamField path="IMAGE_NAME" type="string" default="nodejs-demo-app">
+  The name of the Docker image. This value is set as an environment variable in the Jenkinsfile.
+</ParamField>
+
+<ParamField path="latest" type="string" default="latest">
+  The tag applied to the Docker image. Using `latest` indicates this is the most recent version.
+</ParamField>
+
+<ParamField path="." type="string" required>
+  The build context path. The dot (`.`) indicates the current directory, where the Dockerfile is located.
+</ParamField>
+
+### Build Process
+
+When executed, the build command:
+
+1. Reads the Dockerfile from the current directory
+2. Pulls the base image `node:18-alpine`
+3. Sets working directory to `/app`
+4. Copies `package*.json` files
+5. Runs `npm install` to install dependencies
+6. Copies all application files
+7. Exposes port 3000
+8. Sets the default command to `node index.js`
+
+## Docker Run Command
+
+The Docker run command creates and starts a container from the built image.
+
+### Command Syntax
+
+```bash
+docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest
+```
+
+### Full Example
+
+```bash
+docker run --name Jenkins -d -p 80:3000 nodejs-demo-app:latest
+```
+
+### Run Command Parameters
+
+<ParamField path="--name" type="string" default="Jenkins">
+  Assigns a name to the container. In this pipeline, the container is named `Jenkins` for easy identification and management.
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Detached mode. Runs the container in the background and prints the container ID. This allows the Jenkins pipeline to continue without waiting for the container to stop.
+</ParamField>
+
+<ParamField path="-p" type="string" default="80:3000">
+  Port mapping in the format `HOST_PORT:CONTAINER_PORT`. Maps port 80 on the host machine to port 3000 inside the container, making the application accessible on port 80.
+</ParamField>
+
+<ParamField path="IMAGE_NAME:latest" type="string" required>
+  The image to run. Uses the image built in the Build stage with the `latest` tag.
+</ParamField>
+
+### Port Mapping Details
+
+<ParamField path="Host Port" type="number" default="80">
+  The port on the host machine where the application will be accessible. Port 80 is the standard HTTP port.
+</ParamField>
+
+<ParamField path="Container Port" type="number" default="3000">
+  The port inside the container where the Node.js application is listening. This matches the port exposed in the Dockerfile and used by the Express app.
+</ParamField>
+
+## Complete Docker Workflow
+
+### Step 1: Build the Image
+
+```bash
+docker build -t nodejs-demo-app:latest .
+```
+
+This command:
+- Reads the Dockerfile
+- Executes each instruction in the Dockerfile
+- Creates a new image layer for each instruction
+- Tags the final image as `nodejs-demo-app:latest`
+
+### Step 2: Run the Container
+
+```bash
+docker run --name Jenkins -d -p 80:3000 nodejs-demo-app:latest
+```
+
+This command:
+- Creates a new container from the `nodejs-demo-app:latest` image
+- Names the container `Jenkins`
+- Runs it in detached mode (background)
+- Maps port 80 (host) to port 3000 (container)
+- Starts the Node.js application inside the container
+
+## Dockerfile Reference
+
+The Dockerfile used to build the image:
+
+```dockerfile
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy files
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Run app
+CMD ["node", "index.js"]
+```
+
+### Dockerfile Instructions
+
+<ParamField path="FROM" type="string" default="node:18-alpine">
+  Base image for the Docker container. Uses Node.js version 18 on Alpine Linux for a minimal image size.
+</ParamField>
+
+<ParamField path="WORKDIR" type="string" default="/app">
+  Sets the working directory inside the container to `/app`. All subsequent commands execute in this directory.
+</ParamField>
+
+<ParamField path="COPY package*.json" type="instruction">
+  Copies `package.json` and `package-lock.json` to the working directory. This is done before copying other files to leverage Docker layer caching.
+</ParamField>
+
+<ParamField path="RUN npm install" type="instruction">
+  Installs Node.js dependencies defined in `package.json`.
+</ParamField>
+
+<ParamField path="COPY . ." type="instruction">
+  Copies all application files from the build context to the working directory in the container.
+</ParamField>
+
+<ParamField path="EXPOSE" type="number" default="3000">
+  Documents that the container listens on port 3000. This is informational and does not actually publish the port.
+</ParamField>
+
+<ParamField path="CMD" type="array" default='["node", "index.js"]'>
+  The default command to run when the container starts. Executes `node index.js` to start the Express application.
+</ParamField>
+
+## Usage in Jenkins Pipeline
+
+These Docker commands are executed in the Jenkins pipeline stages:
+
+**Build Stage:**
+```groovy
+stage('Build') {
+    steps {
+        echo 'Building Docker image...'
+        sh 'docker build -t $IMAGE_NAME:latest .'
+        echo 'Docker image built successfully!'
+    }
+}
+```
+
+**Deploy Stage:**
+```groovy
+stage('Deploy') {
+    steps {
+        echo 'Deploying Docker container...'
+        sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        echo 'App deployed on port 80!'
+    }
+}
+```

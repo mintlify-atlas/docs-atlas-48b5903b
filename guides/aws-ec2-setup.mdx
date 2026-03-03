@@ -1,0 +1,301 @@
+---
+title: AWS EC2 Setup for Jenkins
+description: Complete guide to setting up an AWS EC2 instance to host your Jenkins CI/CD server
+---
+
+This guide walks you through setting up an AWS EC2 instance as the host server for your Jenkins CI/CD pipeline.
+
+## Prerequisites
+
+- AWS account with appropriate permissions
+- Basic understanding of AWS EC2 and security groups
+- SSH client for connecting to the instance
+
+## EC2 Instance Setup
+
+<Steps>
+  <Step title="Launch EC2 Instance">
+    Create a new EC2 instance with the following specifications:
+    
+    **Instance Configuration**:
+    - **AMI**: Ubuntu Server 22.04 LTS or Ubuntu Server 20.04 LTS
+    - **Instance Type**: t2.medium or larger (minimum 2 GB RAM recommended)
+    - **Storage**: 20 GB or more
+    
+    1. Go to AWS EC2 Console
+    2. Click "Launch Instance"
+    3. Select Ubuntu Server as the AMI
+    4. Choose instance type (t2.medium recommended for Jenkins)
+    5. Configure instance details (use default VPC settings)
+    6. Add storage (minimum 20 GB)
+  </Step>
+
+  <Step title="Configure Security Group">
+    Set up security group rules to allow necessary traffic:
+    
+    **Inbound Rules**:
+    
+    | Type | Protocol | Port Range | Source | Description |
+    |------|----------|------------|--------|-------------|
+    | SSH | TCP | 22 | Your IP | SSH access |
+    | Custom TCP | TCP | 8080 | 0.0.0.0/0 | Jenkins Web UI |
+    | HTTP | TCP | 80 | 0.0.0.0/0 | Deployed application |
+    
+    <Warning>
+      For production environments, restrict SSH access to your IP address only. The example above uses 0.0.0.0/0 for demonstration purposes.
+    </Warning>
+  </Step>
+
+  <Step title="Create or Select Key Pair">
+    Create a new key pair or select an existing one:
+    
+    1. Create a new key pair if you don't have one
+    2. Download the `.pem` file and store it securely
+    3. Set appropriate permissions:
+       
+       ```bash
+       chmod 400 your-key-pair.pem
+       ```
+  </Step>
+
+  <Step title="Launch and Connect">
+    Launch the instance and connect via SSH:
+    
+    1. Note the public IP address of your instance
+    2. Connect using SSH:
+       
+       ```bash
+       ssh -i your-key-pair.pem ubuntu@<ec2-public-ip>
+       ```
+  </Step>
+</Steps>
+
+## Software Installation
+
+After connecting to your EC2 instance, install the required software.
+
+<Steps>
+  <Step title="Update System Packages">
+    Update the package list and upgrade existing packages:
+    
+    ```bash
+    sudo apt update
+    sudo apt upgrade -y
+    ```
+  </Step>
+
+  <Step title="Install Java">
+    Jenkins requires Java to run. Install OpenJDK:
+    
+    ```bash
+    sudo apt install openjdk-11-jdk -y
+    ```
+    
+    Verify installation:
+    
+    ```bash
+    java -version
+    ```
+  </Step>
+
+  <Step title="Install Jenkins">
+    Add Jenkins repository and install:
+    
+    ```bash
+    # Add Jenkins repository key
+    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+      /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    
+    # Add Jenkins repository
+    echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+      https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+      /etc/apt/sources.list.d/jenkins.list > /dev/null
+    
+    # Update package list and install Jenkins
+    sudo apt update
+    sudo apt install jenkins -y
+    ```
+    
+    Start and enable Jenkins:
+    
+    ```bash
+    sudo systemctl start jenkins
+    sudo systemctl enable jenkins
+    ```
+    
+    Verify Jenkins is running:
+    
+    ```bash
+    sudo systemctl status jenkins
+    ```
+  </Step>
+
+  <Step title="Install Docker">
+    Install Docker for containerizing your application:
+    
+    ```bash
+    # Install Docker dependencies
+    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+    
+    # Add Docker GPG key
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    
+    # Add Docker repository
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Install Docker
+    sudo apt update
+    sudo apt install docker-ce docker-ce-cli containerd.io -y
+    ```
+    
+    Verify Docker installation:
+    
+    ```bash
+    docker --version
+    ```
+  </Step>
+
+  <Step title="Configure Docker Permissions for Jenkins">
+    Add Jenkins user to the Docker group to allow Jenkins to run Docker commands:
+    
+    ```bash
+    sudo usermod -aG docker jenkins
+    sudo systemctl restart jenkins
+    ```
+    
+    <Note>
+      This is a critical step. Without these permissions, your Jenkins pipeline will fail when trying to build or run Docker containers.
+    </Note>
+  </Step>
+
+  <Step title="Install Node.js (Optional)">
+    If you plan to run npm tests directly on the host:
+    
+    ```bash
+    # Install Node.js and npm
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt install nodejs -y
+    ```
+    
+    Verify installation:
+    
+    ```bash
+    node --version
+    npm --version
+    ```
+  </Step>
+</Steps>
+
+## Jenkins Initial Configuration
+
+<Steps>
+  <Step title="Access Jenkins Web Interface">
+    Open your browser and navigate to:
+    
+    ```
+    http://<ec2-public-ip>:8080
+    ```
+  </Step>
+
+  <Step title="Unlock Jenkins">
+    Retrieve the initial admin password:
+    
+    ```bash
+    sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+    ```
+    
+    Copy the password and paste it into the Jenkins unlock screen.
+  </Step>
+
+  <Step title="Install Suggested Plugins">
+    When prompted, select "Install suggested plugins" and wait for the installation to complete.
+    
+    Additionally, install these required plugins:
+    - Docker Pipeline
+    - GitHub Integration Plugin
+    - Pipeline Plugin (should be included in suggested plugins)
+  </Step>
+
+  <Step title="Create Admin User">
+    Set up your admin user account:
+    
+    - Username
+    - Password
+    - Full name
+    - Email address
+    
+    Click "Save and Continue"
+  </Step>
+
+  <Step title="Configure Jenkins URL">
+    Set the Jenkins URL to:
+    
+    ```
+    http://<ec2-public-ip>:8080/
+    ```
+    
+    Click "Save and Finish" and start using Jenkins.
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Confirm all services are running correctly:
+
+```bash
+# Check Jenkins status
+sudo systemctl status jenkins
+
+# Check Docker status
+sudo systemctl status docker
+
+# Verify Jenkins can run Docker commands
+sudo -u jenkins docker ps
+```
+
+If the last command succeeds without permission errors, your setup is complete!
+
+## Accessing Your Application
+
+Once your pipeline deploys the application, access it at:
+
+```
+http://<ec2-public-ip>
+```
+
+<Note>
+  Replace `<ec2-public-ip>` with your actual EC2 instance public IP address throughout this guide.
+</Note>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Elastic IP" icon="network-wired">
+    Assign an Elastic IP to your instance to maintain a consistent public IP address.
+  </Card>
+  
+  <Card title="Regular Updates" icon="arrows-rotate">
+    Keep your system, Jenkins, and Docker updated with security patches.
+  </Card>
+  
+  <Card title="Restrict SSH Access" icon="lock">
+    Limit SSH access to specific IP addresses in your security group.
+  </Card>
+  
+  <Card title="Enable HTTPS" icon="shield">
+    Configure SSL/TLS for Jenkins using a reverse proxy like Nginx.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+With your EC2 instance configured:
+
+1. Create a new Jenkins pipeline project
+2. Connect your GitHub repository
+3. Configure GitHub webhooks
+4. Run your first pipeline build
+
+<Tip>
+  Save your EC2 public IP and Jenkins admin credentials in a secure password manager for easy access.
+</Tip>

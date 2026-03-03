@@ -1,0 +1,73 @@
+---
+title: Prerequisites
+description: Required tools and technologies for setting up the Jenkins CI/CD pipeline
+---
+
+Before setting up your Jenkins CI/CD pipeline, ensure you have access to the following tools and technologies.
+
+## Required Tools
+
+This Jenkins CI/CD pipeline requires the following components:
+
+### Jenkins
+
+Jenkins is the core CI/CD automation tool that orchestrates the entire build, test, and deployment process.
+
+- **Purpose**: CI/CD automation server
+- **Installation**: See [Jenkins Installation](/setup/jenkins-installation) guide
+
+### Docker
+
+Docker is used for containerizing the Node.js application.
+
+- **Purpose**: Containerization platform
+- **Required for**: Building and running application containers
+- **Installation**: See [Docker Configuration](/setup/docker-configuration) guide
+
+### Node.js
+
+The application runtime environment for the demo application.
+
+- **Purpose**: Backend application runtime
+- **Version**: Node.js 18 (Alpine)
+- **Usage**: Running the application and installing dependencies
+
+### AWS EC2 (Ubuntu)
+
+An Ubuntu-based EC2 instance serves as the Jenkins host server.
+
+- **Purpose**: Jenkins host server
+- **Operating System**: Ubuntu
+- **Requirements**: 
+  - Sufficient compute resources for Jenkins
+  - Public IP address for accessing the application
+  - Security group allowing inbound traffic on ports 8080 (Jenkins) and 80 (application)
+
+### GitHub
+
+GitHub hosts the source code repository and triggers the CI/CD pipeline.
+
+- **Purpose**: Source code repository
+- **Requirements**:
+  - Repository with webhook capabilities
+  - Access to repository settings for webhook configuration
+
+<Note>
+Ensure you have administrative access to all these tools before proceeding with the setup.
+</Note>
+
+## Next Steps
+
+<Steps>
+  <Step title="Install Jenkins">
+    Follow the [Jenkins Installation](/setup/jenkins-installation) guide to set up Jenkins on your AWS EC2 instance.
+  </Step>
+  
+  <Step title="Configure Docker">
+    Set up Docker and grant the necessary permissions to the Jenkins user.
+  </Step>
+  
+  <Step title="Connect GitHub">
+    Configure GitHub webhooks to trigger automated builds.
+  </Step>
+</Steps>

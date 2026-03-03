@@ -1,0 +1,143 @@
+---
+title: Jenkins Installation
+description: Step-by-step guide to install Jenkins on AWS EC2 Ubuntu
+---
+
+This guide walks you through installing Jenkins on an AWS EC2 instance running Ubuntu.
+
+## Overview
+
+Jenkins will be installed on an AWS EC2 Ubuntu instance to serve as your CI/CD automation server. This setup enables you to automate the build, test, and deployment process for your Node.js application.
+
+## Installation Steps
+
+<Steps>
+  <Step title="Update System Packages">
+    Connect to your EC2 instance via SSH and update the package list:
+    
+    ```bash
+    sudo apt update
+    sudo apt upgrade -y
+    ```
+  </Step>
+  
+  <Step title="Install Java">
+    Jenkins requires Java to run. Install OpenJDK 11 or 17:
+    
+    ```bash
+    sudo apt install openjdk-11-jdk -y
+    ```
+    
+    Verify the installation:
+    
+    ```bash
+    java -version
+    ```
+  </Step>
+  
+  <Step title="Add Jenkins Repository">
+    Add the Jenkins repository key and source:
+    
+    ```bash
+    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+      /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    
+    echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+      https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+      /etc/apt/sources.list.d/jenkins.list > /dev/null
+    ```
+  </Step>
+  
+  <Step title="Install Jenkins">
+    Update the package list and install Jenkins:
+    
+    ```bash
+    sudo apt update
+    sudo apt install jenkins -y
+    ```
+  </Step>
+  
+  <Step title="Start Jenkins Service">
+    Enable and start the Jenkins service:
+    
+    ```bash
+    sudo systemctl enable jenkins
+    sudo systemctl start jenkins
+    ```
+    
+    Check the service status:
+    
+    ```bash
+    sudo systemctl status jenkins
+    ```
+  </Step>
+  
+  <Step title="Configure Security Group">
+    In your AWS console, configure the security group for your EC2 instance to allow inbound traffic:
+    
+    - **Port 8080**: Jenkins web interface
+    - **Port 80**: Application access
+    
+    <Warning>
+    Ensure you restrict access to port 8080 to trusted IP addresses for security purposes.
+    </Warning>
+  </Step>
+  
+  <Step title="Access Jenkins">
+    Open your browser and navigate to:
+    
+    ```
+    http://<your-ec2-public-ip>:8080
+    ```
+    
+    Retrieve the initial admin password:
+    
+    ```bash
+    sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+    ```
+  </Step>
+  
+  <Step title="Complete Setup Wizard">
+    1. Enter the initial admin password
+    2. Click "Install suggested plugins" or select specific plugins
+    3. Create your first admin user
+    4. Configure the Jenkins URL
+    5. Click "Start using Jenkins"
+  </Step>
+</Steps>
+
+## Install Required Plugins
+
+After completing the initial setup, install the following plugins for the CI/CD pipeline:
+
+<Steps>
+  <Step title="Navigate to Plugin Manager">
+    Go to **Manage Jenkins** > **Manage Plugins** > **Available**
+  </Step>
+  
+  <Step title="Install Plugins">
+    Search for and install:
+    
+    - **Docker** - For Docker integration
+    - **Pipeline** - For pipeline functionality
+    - **GitHub Integration** - For GitHub webhook support
+    
+    Click "Install without restart" or "Download now and install after restart"
+  </Step>
+  
+  <Step title="Restart Jenkins">
+    Restart Jenkins to activate the plugins:
+    
+    ```bash
+    sudo systemctl restart jenkins
+    ```
+  </Step>
+</Steps>
+
+<Note>
+The Pipeline plugin may already be installed with the suggested plugins during initial setup.
+</Note>
+
+## Next Steps
+
+With Jenkins installed, proceed to [Docker Configuration](/setup/docker-configuration) to set up Docker permissions for the Jenkins user.

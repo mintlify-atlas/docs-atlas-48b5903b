@@ -1,0 +1,261 @@
+---
+title: 'Node.js Application'
+description: 'Node.js application reference including Express app, endpoints, and package.json'
+---
+
+## Overview
+
+This document provides a complete reference for the Node.js application deployed through the Jenkins CI/CD pipeline. The application is a simple Express.js web server that responds to HTTP requests.
+
+## Application Source Code
+
+### index.js
+
+The main application file that creates and configures the Express server.
+
+```javascript
+const express = require('express');
+const app = express();
+app.get('/', (req, res) => res.send('Hello, Elevate Labs, This is After pushing code commits to GitHub'));
+app.listen(3000, () => console.log('App running on port 3000'));
+```
+
+### Code Breakdown
+
+#### Import Express
+
+```javascript
+const express = require('express');
+```
+
+Imports the Express.js framework for building the web application.
+
+#### Create Express Application
+
+```javascript
+const app = express();
+```
+
+Creates an Express application instance.
+
+#### Define Route Handler
+
+```javascript
+app.get('/', (req, res) => res.send('Hello, Elevate Labs, This is After pushing code commits to GitHub'));
+```
+
+Defines a GET route for the root path (`/`) that sends a text response.
+
+<ParamField path="req" type="object">
+  The request object containing information about the HTTP request.
+</ParamField>
+
+<ParamField path="res" type="object">
+  The response object used to send data back to the client.
+</ParamField>
+
+#### Start Server
+
+```javascript
+app.listen(3000, () => console.log('App running on port 3000'));
+```
+
+Starts the Express server on port 3000 and logs a confirmation message.
+
+<ParamField path="port" type="number" default="3000">
+  The port number on which the server listens for incoming requests.
+</ParamField>
+
+## Endpoints
+
+### GET /
+
+The root endpoint that returns a welcome message.
+
+**Request:**
+```bash
+GET / HTTP/1.1
+Host: localhost:3000
+```
+
+**Response:**
+```
+Hello, Elevate Labs, This is After pushing code commits to GitHub
+```
+
+<ParamField path="Method" type="string" default="GET">
+  HTTP method for the endpoint.
+</ParamField>
+
+<ParamField path="Path" type="string" default="/">
+  The URL path for the endpoint (root path).
+</ParamField>
+
+<ParamField path="Response Type" type="string" default="text/html">
+  Content type of the response. Express automatically sets this when using `res.send()` with a string.
+</ParamField>
+
+<ParamField path="Status Code" type="number" default="200">
+  HTTP status code returned on successful request.
+</ParamField>
+
+### Testing the Endpoint
+
+**Using curl:**
+```bash
+curl http://localhost:3000/
+```
+
+**Using browser:**
+```
+http://localhost:3000/
+```
+
+**Expected output:**
+```
+Hello, Elevate Labs, This is After pushing code commits to GitHub
+```
+
+## Package Configuration
+
+### package.json
+
+The package configuration file defines project metadata, dependencies, and scripts.
+
+```json
+{
+  "name": "nodejs-demo-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Running dummy test..\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
+```
+
+### Package Fields
+
+<ParamField path="name" type="string" default="nodejs-demo-app">
+  The name of the application package.
+</ParamField>
+
+<ParamField path="version" type="string" default="1.0.0">
+  The current version of the application following semantic versioning.
+</ParamField>
+
+<ParamField path="description" type="string">
+  A brief description of the application (currently empty).
+</ParamField>
+
+<ParamField path="main" type="string" default="index.js">
+  The entry point file for the application.
+</ParamField>
+
+<ParamField path="license" type="string" default="ISC">
+  The license under which the application is distributed.
+</ParamField>
+
+### Scripts
+
+<ParamField path="test" type="string" default='echo "Running dummy test.." && exit 0'>
+  The test script executed when running `npm test`. This is a dummy test that always succeeds (exit code 0).
+</ParamField>
+
+### Dependencies
+
+<ParamField path="express" type="string" default="^5.1.0">
+  Express.js framework version 5.1.0 or higher (compatible with minor and patch updates). Used for building the web server.
+</ParamField>
+
+## Application Deployment
+
+The application is deployed through the Jenkins pipeline using Docker.
+
+### Local Development
+
+**Install dependencies:**
+```bash
+npm install
+```
+
+**Run the application:**
+```bash
+node index.js
+```
+
+**Expected output:**
+```
+App running on port 3000
+```
+
+### Docker Deployment
+
+**Build the Docker image:**
+```bash
+docker build -t nodejs-demo-app:latest .
+```
+
+**Run the container:**
+```bash
+docker run --name Jenkins -d -p 80:3000 nodejs-demo-app:latest
+```
+
+**Access the application:**
+```
+http://localhost:80/
+```
+
+## Port Configuration
+
+<ParamField path="Application Port" type="number" default="3000">
+  The port on which the Express application listens inside the container.
+</ParamField>
+
+<ParamField path="Container Port" type="number" default="3000">
+  The port exposed by the Docker container (defined in Dockerfile with `EXPOSE 3000`).
+</ParamField>
+
+<ParamField path="Host Port" type="number" default="80">
+  The port on the host machine mapped to the container port. The application is accessible on port 80 in production.
+</ParamField>
+
+## Testing
+
+The application includes a dummy test script in package.json.
+
+**Run tests:**
+```bash
+npm test
+```
+
+**Output:**
+```
+Running dummy test..
+```
+
+The test always exits with code 0 (success). In the Jenkins pipeline, even if tests fail, the pipeline continues:
+
+```bash
+npm test || echo "No tests defined or test failed, continuing..."
+```
+
+## Environment
+
+<ParamField path="Node.js Version" type="string" default="18">
+  The application runs on Node.js version 18, using the Alpine Linux base image for minimal size.
+</ParamField>
+
+<ParamField path="Express Version" type="string" default="5.1.0">
+  The application uses Express.js version 5.1.0.
+</ParamField>
+
+<ParamField path="Working Directory" type="string" default="/app">
+  The working directory inside the Docker container where the application files are located.
+</ParamField>

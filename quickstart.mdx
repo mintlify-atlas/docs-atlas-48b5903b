@@ -1,80 +1,250 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get your Jenkins CI/CD pipeline running in minutes with this step-by-step guide
 ---
 
-## Get started in three steps
+This guide will help you set up a complete Jenkins CI/CD pipeline to automate building, testing, and deploying a Node.js application using Docker.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
+
+- AWS EC2 instance running Ubuntu
+- GitHub account
+- Basic understanding of Docker and Jenkins
+
+<Warning>
+  Make sure to configure security groups on your EC2 instance to allow traffic on ports 22 (SSH), 8080 (Jenkins), and 80 (Application).
+</Warning>
+
+## Setup steps
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Jenkins pipeline repository to your local machine:
+
+    ```bash
+    git clone https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git
+    cd Jenkins-Pipeline-for-CI-CD
+    ```
+
+    The repository contains:
+    - `Jenkinsfile` - Pipeline configuration
+    - `Dockerfile` - Node.js application containerization
+    - `index.js` - Simple Express application
+    - `package.json` - Node.js dependencies
+  </Step>
+
+  <Step title="Install Jenkins on EC2">
+    SSH into your EC2 instance and install Jenkins:
+
+    <CodeGroup>
+    ```bash Update system
+    sudo apt update
+    sudo apt upgrade -y
+    ```
+
+    ```bash Install Java
+    sudo apt install -y openjdk-17-jdk
+    ```
+
+    ```bash Add Jenkins repository
+    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+      /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+      https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+      /etc/apt/sources.list.d/jenkins.list > /dev/null
+    ```
+
+    ```bash Install Jenkins
+    sudo apt update
+    sudo apt install -y jenkins
+    sudo systemctl start jenkins
+    sudo systemctl enable jenkins
+    ```
+    </CodeGroup>
+
+    Access Jenkins at `http://<your-ec2-public-ip>:8080` and complete the initial setup wizard.
+  </Step>
+
+  <Step title="Configure Docker permissions">
+    Install Docker and grant Jenkins user permission to use it:
+
+    ```bash Install Docker
+    sudo apt install -y docker.io
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    ```
+
+    ```bash Configure permissions
+    sudo usermod -aG docker jenkins
+    sudo systemctl restart jenkins
+    ```
+
+    <Warning>
+      The Jenkins service must be restarted after adding the jenkins user to the docker group. This is critical for the pipeline to work.
+    </Warning>
+  </Step>
+
+  <Step title="Install Jenkins plugins">
+    In the Jenkins dashboard, navigate to **Manage Jenkins** > **Manage Plugins** and install:
+
+    - **Docker** plugin
+    - **Pipeline** plugin
+    - **GitHub Integration** plugin
+
+    Restart Jenkins after installing plugins.
+  </Step>
+
+  <Step title="Create Jenkins pipeline job">
+    1. Click **New Item** in Jenkins dashboard
+    2. Enter a name (e.g., "nodejs-demo-app")
+    3. Select **Pipeline** and click **OK**
+    4. In the Pipeline section, select **Pipeline script from SCM**
+    5. Choose **Git** as SCM
+    6. Enter repository URL: `https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git`
+    7. Set branch to `*/main`
+    8. Save the configuration
+  </Step>
+
+  <Step title="Configure GitHub webhook">
+    Set up automatic builds when you push code to GitHub:
+
+    1. Go to your GitHub repository settings
+    2. Navigate to **Webhooks** > **Add webhook**
+    3. Set Payload URL: `http://<your-ec2-public-ip>:8080/github-webhook/`
+    4. Content type: `application/json`
+    5. Select **Just the push event**
+    6. Click **Add webhook**
+
+    <Info>
+      The webhook triggers the Jenkins pipeline automatically whenever you push commits to the repository.
+    </Info>
+  </Step>
+
+  <Step title="Trigger your first build">
+    You can trigger a build in two ways:
+
+    **Manual trigger:**
+    - Click **Build Now** in your Jenkins job
+
+    **Automatic trigger:**
+    - Make a change to your repository
+    - Commit and push to GitHub
+    - Jenkins will automatically start the pipeline
+
+    The pipeline will execute four stages:
+    1. **Clone** - Fetch code from GitHub
+    2. **Build** - Create Docker image
+    3. **Test** - Run npm tests
+    4. **Deploy** - Launch Docker container
+  </Step>
+
+  <Step title="Verify deployment">
+    Once the pipeline completes successfully:
+
+    1. Check the Jenkins console output for "Pipeline completed!"
+    2. Verify the Docker container is running:
+       ```bash
+       docker ps | grep nodejs-demo-app
+       ```
+    3. Access your application at `http://<your-ec2-public-ip>`
+
+    You should see the message: **"Hello, Elevate Labs, This is After pushing code commits to GitHub"**
+  </Step>
+</Steps>
+
+## Pipeline stages explained
+
+The Jenkins pipeline defined in `Jenkinsfile` includes:
+
+<CodeGroup>
+```groovy Clone stage
+stage('Clone') {
+    steps {
+        echo 'Cloning the repository...'
+        git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+    }
+}
+```
+
+```groovy Build stage
+stage('Build') {
+    steps {
+        echo 'Building Docker image...'
+        sh 'docker build -t $IMAGE_NAME:latest .'
+        echo 'Docker image built successfully!'
+    }
+}
+```
+
+```groovy Test stage
+stage('Test') {
+    steps {
+        echo 'Running tests...'
+        sh 'npm install'
+        sh 'npm test || echo "No tests defined or test failed, continuing..."'
+    }
+}
+```
+
+```groovy Deploy stage
+stage('Deploy') {
+    steps {
+        echo 'Deploying Docker container...'
+        sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        echo 'App deployed on port 80!'
+    }
+}
+```
+</CodeGroup>
+
+## Troubleshooting
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+  <Accordion title="Docker permission denied">
+    If you see "permission denied while trying to connect to Docker daemon":
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+    ```bash
+    sudo usermod -aG docker jenkins
+    sudo systemctl restart jenkins
+    ```
+    
+    Wait a few seconds for Jenkins to restart, then retry the build.
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+
+  <Accordion title="Port already in use">
+    If port 80 or 3000 is already in use:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+    ```bash
+    # Find and stop the container using the port
+    docker ps
+    docker stop <container-name>
+    docker rm <container-name>
+    ```
   </Accordion>
-</AccordionGroup>
 
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
+  <Accordion title="Webhook not triggering builds">
+    Verify webhook configuration:
+    - Ensure Payload URL ends with `/github-webhook/`
+    - Check security group allows inbound traffic on port 8080
+    - Review webhook delivery history in GitHub settings
   </Accordion>
 </AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Setup Guide" icon="gears" href="/setup/prerequisites">
+    Detailed setup instructions for each component
+  </Card>
+  <Card title="Pipeline Configuration" icon="diagram-project" href="/pipeline/overview">
+    Learn about pipeline stages and customization
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Common issues and solutions
+  </Card>
+  <Card title="AWS EC2 Setup" icon="server" href="/guides/aws-ec2-setup">
+    Complete EC2 instance configuration guide
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

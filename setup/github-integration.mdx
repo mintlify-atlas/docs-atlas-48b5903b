@@ -1,0 +1,247 @@
+---
+title: GitHub Integration
+description: Configure GitHub webhooks and connect your repository to Jenkins
+---
+
+This guide explains how to integrate GitHub with Jenkins to enable automated builds triggered by code commits.
+
+## Overview
+
+GitHub webhooks notify Jenkins whenever code is pushed to the repository, automatically triggering the CI/CD pipeline. This enables continuous integration and deployment.
+
+## Create a Jenkins Pipeline Job
+
+<Steps>
+  <Step title="Create New Item">
+    1. From the Jenkins dashboard, click **New Item**
+    2. Enter a name for your pipeline (e.g., "nodejs-cicd-pipeline")
+    3. Select **Pipeline** as the project type
+    4. Click **OK**
+  </Step>
+  
+  <Step title="Configure Pipeline">
+    In the pipeline configuration:
+    
+    1. Check **GitHub project**
+    2. Enter your repository URL:
+    
+    ```
+    https://github.com/<your-username>/<your-repo>
+    ```
+  </Step>
+  
+  <Step title="Set Up Build Triggers">
+    Under **Build Triggers**, check:
+    
+    - **GitHub hook trigger for GITScm polling**
+    
+    This allows GitHub webhooks to trigger builds automatically.
+  </Step>
+  
+  <Step title="Configure Pipeline Definition">
+    Under **Pipeline**, select:
+    
+    - **Definition**: Pipeline script from SCM
+    - **SCM**: Git
+    - **Repository URL**: Your GitHub repository URL
+    - **Branch Specifier**: `*/main`
+    - **Script Path**: `Jenkinsfile`
+    
+    <Note>
+    The Jenkinsfile should be in the root of your repository.
+    </Note>
+  </Step>
+  
+  <Step title="Save Configuration">
+    Click **Save** to create the pipeline job.
+  </Step>
+</Steps>
+
+## Configure GitHub Webhook
+
+<Warning>
+Ensure your Jenkins server is accessible from the internet for GitHub webhooks to work. Your EC2 instance must have a public IP address.
+</Warning>
+
+<Steps>
+  <Step title="Navigate to Repository Settings">
+    1. Go to your GitHub repository
+    2. Click **Settings** > **Webhooks**
+    3. Click **Add webhook**
+  </Step>
+  
+  <Step title="Configure Webhook">
+    Enter the following details:
+    
+    - **Payload URL**: `http://<your-ec2-public-ip>:8080/github-webhook/`
+    - **Content type**: `application/json`
+    - **Which events would you like to trigger this webhook?**: Select "Just the push event"
+    - **Active**: Check this box
+    
+    <Note>
+    Include the trailing slash in `/github-webhook/`
+    </Note>
+  </Step>
+  
+  <Step title="Save Webhook">
+    Click **Add webhook** to save the configuration.
+    
+    GitHub will send a test ping to verify connectivity.
+  </Step>
+  
+  <Step title="Verify Webhook">
+    After saving, you should see a green checkmark next to the webhook if the ping was successful.
+    
+    If you see a red X, check:
+    - Jenkins is accessible from the internet
+    - Security group allows traffic on port 8080
+    - The payload URL is correct
+  </Step>
+</Steps>
+
+## Understanding the Jenkinsfile
+
+The pipeline is defined in a `Jenkinsfile` at the root of the repository:
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'nodejs-demo-app'
+    }
+
+    stages {
+        stage('Clone') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME:latest .'
+                echo 'Docker image built successfully!'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'npm install'
+                sh 'npm test || echo "No tests defined or test failed, continuing..."'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Docker container...'
+                sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+                echo 'App deployed on port 80!'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'CI/CD pipeline ran successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+```
+
+### Pipeline Stages
+
+1. **Clone**: Checks out the code from the GitHub repository (main branch)
+2. **Build**: Builds a Docker image using the Dockerfile
+3. **Test**: Installs dependencies and runs npm tests
+4. **Deploy**: Runs the Docker container on port 80
+
+### Environment Variables
+
+- `IMAGE_NAME`: Set to `nodejs-demo-app` for consistent image naming
+
+### Post Actions
+
+- **always**: Executes regardless of pipeline result
+- **success**: Executes only when pipeline succeeds
+- **failure**: Executes only when pipeline fails
+
+## Test the Pipeline
+
+<Steps>
+  <Step title="Push Code to GitHub">
+    Make a change to your repository and push it to the main branch:
+    
+    ```bash
+    git add .
+    git commit -m "Test Jenkins pipeline"
+    git push origin main
+    ```
+  </Step>
+  
+  <Step title="Monitor Jenkins">
+    1. Go to the Jenkins dashboard
+    2. You should see your pipeline job automatically start
+    3. Click on the build number to view real-time logs
+  </Step>
+  
+  <Step title="View Build Logs">
+    Monitor the console output to see each stage execute:
+    
+    - Clone stage: Repository checkout
+    - Build stage: Docker image creation
+    - Test stage: Dependency installation and tests
+    - Deploy stage: Container deployment
+  </Step>
+  
+  <Step title="Access the Application">
+    Once the pipeline completes successfully, access your application:
+    
+    ```
+    http://<your-ec2-public-ip>
+    ```
+    
+    You should see the "Hello, Jenkins CI/CD!" message.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Webhook Not Triggering
+
+- Verify the webhook URL includes the trailing slash
+- Check that port 8080 is accessible from the internet
+- Review the webhook delivery history in GitHub settings
+
+### Docker Permission Errors
+
+- Ensure the Jenkins user is in the docker group (see [Docker Configuration](/setup/docker-configuration))
+- Restart Jenkins after adding to the docker group
+
+### Build Failures
+
+- Check the console output for specific error messages
+- Verify the Jenkinsfile syntax
+- Ensure Docker is installed and running
+
+<Note>
+Every code push to the main branch will automatically trigger the pipeline. Monitor your builds regularly to catch issues early.
+</Note>
+
+## Next Steps
+
+Your Jenkins CI/CD pipeline is now fully configured! Consider:
+
+- Adding more comprehensive tests
+- Implementing deployment strategies (blue-green, canary)
+- Adding notifications (Slack, email) for build status
+- Implementing proper secrets management for credentials

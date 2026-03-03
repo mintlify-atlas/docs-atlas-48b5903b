@@ -1,0 +1,198 @@
+---
+title: GitHub Webhooks
+description: Configure GitHub webhooks for automatic Jenkins pipeline triggers
+---
+
+## Overview
+
+GitHub webhooks enable automatic triggering of the Jenkins CI/CD pipeline whenever code is pushed to the repository. This eliminates the need to manually start builds and ensures continuous integration.
+
+## How Webhooks Work
+
+When you push code to your GitHub repository:
+
+1. GitHub sends an HTTP POST request to your Jenkins server
+2. Jenkins receives the webhook payload
+3. Jenkins automatically starts the pipeline defined in the Jenkinsfile
+4. The pipeline executes all stages (Clone, Build, Test, Deploy)
+
+## Prerequisites
+
+Before configuring webhooks, ensure:
+
+- Jenkins is running on a publicly accessible server (e.g., AWS EC2)
+- Jenkins has the GitHub plugin installed
+- Your Jenkins server accepts incoming connections on the webhook port
+
+## GitHub Webhook Configuration
+
+### Step 1: Navigate to Repository Settings
+
+1. Go to your GitHub repository: `https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD`
+2. Click on **Settings**
+3. In the left sidebar, click **Webhooks**
+4. Click **Add webhook**
+
+### Step 2: Configure Webhook Settings
+
+<ParamField path="Payload URL" type="string" required>
+  The Jenkins webhook endpoint URL.
+  
+  **Format:** `http://<your-jenkins-server-ip>:8080/github-webhook/`
+  
+  **Example:** `http://54.123.45.67:8080/github-webhook/`
+  
+  <Note>
+    Make sure to include the trailing slash (`/`) at the end of the URL.
+  </Note>
+</ParamField>
+
+<ParamField path="Content type" type="string" default="application/json">
+  The format of the webhook payload.
+  
+  Select: `application/json`
+</ParamField>
+
+<ParamField path="Secret" type="string">
+  Optional: A secret token for validating webhook requests.
+  
+  Leave blank or configure a secret token for added security.
+</ParamField>
+
+<ParamField path="Which events would you like to trigger this webhook?" type="string" default="Just the push event">
+  Select the events that should trigger the Jenkins pipeline.
+  
+  **Recommended:** Just the push event
+  
+  **Options:**
+  - Just the push event (recommended for CI/CD)
+  - Send me everything
+  - Let me select individual events
+</ParamField>
+
+<ParamField path="Active" type="boolean" default={true}>
+  Enable the webhook immediately after creation.
+  
+  Keep this checked to activate the webhook.
+</ParamField>
+
+### Step 3: Save Webhook
+
+Click **Add webhook** to save your configuration.
+
+## Jenkins Configuration
+
+### Install Required Plugins
+
+Ensure these plugins are installed in Jenkins:
+
+1. **GitHub Integration Plugin**
+2. **Pipeline Plugin**
+3. **Docker Plugin**
+
+To install plugins:
+1. Go to **Manage Jenkins** > **Manage Plugins**
+2. Search for the required plugins
+3. Install and restart Jenkins if needed
+
+### Configure Jenkins Job
+
+1. Create a new **Pipeline** job in Jenkins
+2. Under **Build Triggers**, enable:
+   - **GitHub hook trigger for GITScm polling**
+3. In **Pipeline** section, configure:
+   - **Definition:** Pipeline script from SCM
+   - **SCM:** Git
+   - **Repository URL:** `https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git`
+   - **Branch:** `*/main`
+   - **Script Path:** `Jenkinsfile`
+
+## Testing the Webhook
+
+### Test Push Event
+
+1. Make a change to your repository (e.g., update README.md)
+2. Commit and push to the `main` branch:
+
+```bash
+git add .
+git commit -m "Test webhook trigger"
+git push origin main
+```
+
+3. Check Jenkins dashboard - the pipeline should start automatically
+4. View the build logs to verify all stages execute successfully
+
+### Verify Webhook Delivery
+
+1. Go to GitHub repository **Settings** > **Webhooks**
+2. Click on your webhook
+3. Scroll to **Recent Deliveries**
+4. Check for successful delivery (green checkmark)
+5. Click on a delivery to view:
+   - Request headers and payload
+   - Response from Jenkins
+
+## Troubleshooting
+
+### Webhook Not Triggering
+
+<AccordionGroup>
+  <Accordion title="Jenkins not receiving webhook">
+    - Verify Jenkins is publicly accessible
+    - Check firewall rules on your server
+    - Ensure port 8080 is open for incoming connections
+    - Verify the payload URL is correct with trailing slash
+  </Accordion>
+
+  <Accordion title="GitHub shows failed delivery">
+    - Check Recent Deliveries in GitHub webhook settings
+    - Review the response code and error message
+    - Verify Jenkins is running and accessible
+    - Check Jenkins logs: `/var/log/jenkins/jenkins.log`
+  </Accordion>
+
+  <Accordion title="Pipeline doesn't start automatically">
+    - Verify **GitHub hook trigger for GITScm polling** is enabled
+    - Check Jenkins job configuration
+    - Ensure the branch name matches (e.g., `main` vs `master`)
+    - Review Jenkins system logs for errors
+  </Accordion>
+</AccordionGroup>
+
+### Security Considerations
+
+<Warning>
+  If your Jenkins server is publicly accessible, consider:
+  - Enabling authentication for Jenkins
+  - Using webhook secret tokens for validation
+  - Restricting IP access to known GitHub webhook IPs
+  - Using HTTPS instead of HTTP for webhook URLs
+</Warning>
+
+## Pipeline Execution Flow
+
+Once the webhook triggers the pipeline, the following stages execute automatically:
+
+```groovy
+// 1. Clone Stage
+git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+
+// 2. Build Stage
+docker build -t nodejs-demo-app:latest .
+
+// 3. Test Stage
+npm install
+npm test
+
+// 4. Deploy Stage
+docker run --name Jenkins -d -p 80:3000 nodejs-demo-app:latest
+```
+
+## Accessing the Deployed Application
+
+After successful pipeline execution:
+
+- Access your application at: `http://<your-ec2-public-ip>`
+- The app runs on port 80 (mapped from internal port 3000)
+- Check Jenkins console output for deployment confirmation

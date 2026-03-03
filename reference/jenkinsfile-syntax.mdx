@@ -1,0 +1,202 @@
+---
+title: 'Jenkinsfile Syntax'
+description: 'Complete Jenkinsfile reference with all stages, environment variables, and post-build actions'
+---
+
+## Overview
+
+This document provides a complete reference for the Jenkinsfile used in the CI/CD pipeline. The pipeline is written using Jenkins Declarative Pipeline syntax and includes four stages: Clone, Build, Test, and Deploy.
+
+## Complete Jenkinsfile
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'nodejs-demo-app'
+    }
+
+    stages {
+        stage('Clone') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME:latest .'
+                echo 'Docker image built successfully!'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'npm install'
+                sh 'npm test || echo "No tests defined or test failed, continuing..."'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Docker container...'
+                sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+                echo 'App deployed on port 80!'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'CI/CD pipeline ran successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+```
+
+## Pipeline Configuration
+
+<ParamField path="agent" type="string" default="any">
+  Specifies where the pipeline will execute. `any` means the pipeline can run on any available agent.
+</ParamField>
+
+## Environment Variables
+
+Environment variables are defined at the pipeline level and are accessible across all stages.
+
+<ParamField path="IMAGE_NAME" type="string" default="nodejs-demo-app">
+  The name of the Docker image to be built and deployed.
+</ParamField>
+
+## Stages
+
+### Clone Stage
+
+Clones the source code repository from GitHub.
+
+```groovy
+stage('Clone') {
+    steps {
+        echo 'Cloning the repository...'
+        git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+    }
+}
+```
+
+<ParamField path="branch" type="string" default="main">
+  The Git branch to clone from the repository.
+</ParamField>
+
+<ParamField path="url" type="string" required>
+  The GitHub repository URL to clone from.
+</ParamField>
+
+### Build Stage
+
+Builds the Docker image using the Dockerfile in the repository.
+
+```groovy
+stage('Build') {
+    steps {
+        echo 'Building Docker image...'
+        sh 'docker build -t $IMAGE_NAME:latest .'
+        echo 'Docker image built successfully!'
+    }
+}
+```
+
+The build command uses the `IMAGE_NAME` environment variable and tags the image as `latest`.
+
+### Test Stage
+
+Installs dependencies and runs the test suite.
+
+```groovy
+stage('Test') {
+    steps {
+        echo 'Running tests...'
+        sh 'npm install'
+        sh 'npm test || echo "No tests defined or test failed, continuing..."'
+    }
+}
+```
+
+The test stage continues execution even if tests fail or are not defined, using the `||` operator for fallback.
+
+### Deploy Stage
+
+Deploys the Docker container and exposes it on port 80.
+
+```groovy
+stage('Deploy') {
+    steps {
+        echo 'Deploying Docker container...'
+        sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        echo 'App deployed on port 80!'
+    }
+}
+```
+
+<ParamField path="--name" type="string" default="Jenkins">
+  The name assigned to the Docker container.
+</ParamField>
+
+<ParamField path="-d" type="flag">
+  Runs the container in detached mode (background).
+</ParamField>
+
+<ParamField path="-p" type="string" default="80:3000">
+  Port mapping from host port 80 to container port 3000.
+</ParamField>
+
+## Post-Build Actions
+
+Post-build actions execute after all stages complete, regardless of success or failure.
+
+### Always Block
+
+Executes regardless of pipeline result.
+
+```groovy
+always {
+    echo 'Pipeline completed!'
+}
+```
+
+### Success Block
+
+Executes only when the pipeline completes successfully.
+
+```groovy
+success {
+    echo 'CI/CD pipeline ran successfully!'
+}
+```
+
+### Failure Block
+
+Executes only when the pipeline fails.
+
+```groovy
+failure {
+    echo 'Pipeline failed. Check logs for details.'
+}
+```
+
+## Execution Flow
+
+1. **Clone**: Repository is cloned from GitHub
+2. **Build**: Docker image is built with tag `nodejs-demo-app:latest`
+3. **Test**: NPM dependencies are installed and tests are executed
+4. **Deploy**: Docker container is started on port 80
+5. **Post**: Appropriate post-build action executes based on pipeline result

@@ -1,0 +1,170 @@
+---
+title: Introduction
+description: Learn about the Jenkins CI/CD pipeline for automating Node.js application builds, tests, and deployments using Docker
+---
+
+# Jenkins CI/CD Pipeline for Node.js
+
+Automate your Node.js application deployment with a complete CI/CD pipeline using Jenkins and Docker. This pipeline handles the entire workflow from code commit to production deployment.
+
+## Overview
+
+This Jenkins pipeline automates the **build**, **test**, and **deployment** process of a Node.js web application. When code is pushed to GitHub, Jenkins automatically detects the change, builds a Docker image, runs tests, and deploys the containerized application.
+
+<CardGroup cols={2}>
+  <Card title="Automated Builds" icon="hammer">
+    Docker images are automatically built from your Node.js application on every code commit
+  </Card>
+  <Card title="Continuous Testing" icon="flask">
+    Run your test suite automatically as part of the pipeline to catch issues early
+  </Card>
+  <Card title="Container Deployment" icon="docker">
+    Deploy your application in Docker containers for consistent environments across all stages
+  </Card>
+  <Card title="GitHub Integration" icon="github">
+    Webhooks trigger the pipeline automatically when code is pushed to your repository
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Multi-Stage Pipeline
+
+The pipeline consists of four distinct stages that execute sequentially:
+
+<CardGroup cols={2}>
+  <Card title="Clone" icon="code-branch">
+    Pulls the latest code from your GitHub repository to ensure builds use the most recent changes
+  </Card>
+  <Card title="Build" icon="cube">
+    Creates a Docker image from your Node.js application using the Dockerfile configuration
+  </Card>
+  <Card title="Test" icon="check-circle">
+    Installs dependencies and runs your test suite to validate code quality
+  </Card>
+  <Card title="Deploy" icon="rocket">
+    Launches the Docker container and exposes your application on port 80
+  </Card>
+</CardGroup>
+
+### Technology Stack
+
+<CardGroup cols={3}>
+  <Card title="Jenkins" icon="gears">
+    Open-source automation server for building CI/CD pipelines
+  </Card>
+  <Card title="Docker" icon="docker">
+    Containerization platform for consistent application packaging
+  </Card>
+  <Card title="Node.js" icon="node-js">
+    JavaScript runtime for building the backend application
+  </Card>
+  <Card title="Express" icon="server">
+    Fast, minimalist web framework for Node.js
+  </Card>
+  <Card title="GitHub" icon="github">
+    Version control and source code repository
+  </Card>
+  <Card title="AWS EC2" icon="aws">
+    Cloud hosting for the Jenkins server
+  </Card>
+</CardGroup>
+
+## Pipeline Architecture
+
+The pipeline follows a declarative syntax and includes error handling with post-build actions:
+
+```groovy Jenkinsfile
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'nodejs-demo-app'
+    }
+
+    stages {
+        stage('Clone') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME:latest .'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'npm install'
+                sh 'npm test || echo "No tests defined or test failed, continuing..."'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Docker container...'
+                sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'CI/CD pipeline ran successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+```
+
+## Application Structure
+
+The Node.js application is a simple Express server that demonstrates the CI/CD workflow:
+
+```javascript index.js
+const express = require('express');
+const app = express();
+app.get('/', (req, res) => res.send('Hello, Elevate Labs, This is After pushing code commits to GitHub'));
+app.listen(3000, () => console.log('App running on port 3000'));
+```
+
+<Note>
+The application runs on port 3000 inside the container but is exposed on port 80 on the host machine for easy access.
+</Note>
+
+## Project Structure
+
+```
+├── Dockerfile          # Container configuration
+├── Jenkinsfile         # Pipeline definition
+├── index.js            # Node.js application
+├── package.json        # Dependencies and scripts
+└── README.md          # Project documentation
+```
+
+## What You'll Learn
+
+By setting up and running this pipeline, you'll gain hands-on experience with:
+
+- Configuring Jenkins for automated CI/CD workflows
+- Writing declarative Jenkinsfiles with multiple stages
+- Building and deploying Docker containers
+- Integrating GitHub webhooks with Jenkins
+- Managing environment variables in Jenkins pipelines
+- Implementing post-build actions for pipeline notifications
+
+<CardGroup cols={1}>
+  <Card title="Ready to Get Started?" icon="play" href="/quickstart">
+    Follow the quickstart guide to set up your Jenkins pipeline in minutes
+  </Card>
+</CardGroup>

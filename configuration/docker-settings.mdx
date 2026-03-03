@@ -1,0 +1,140 @@
+---
+title: Docker Settings
+description: Configure Docker image and container settings for the Node.js application
+---
+
+## Dockerfile Configuration
+
+The application uses a multi-stage Dockerfile to create an optimized container for the Node.js application.
+
+## Base Image
+
+The pipeline uses the official Node.js Alpine Linux image for a lightweight container:
+
+```dockerfile
+FROM node:18-alpine
+```
+
+<ParamField path="node:18-alpine" type="string">
+  **Base Image:** Node.js version 18 on Alpine Linux
+  
+  - **Node.js version:** 18 LTS
+  - **OS:** Alpine Linux (minimal footprint)
+  - **Benefits:** Smaller image size, faster builds, reduced attack surface
+</ParamField>
+
+## Container Configuration
+
+### Working Directory
+
+The application files are stored in `/app` within the container:
+
+```dockerfile
+WORKDIR /app
+```
+
+### File Copying and Dependencies
+
+```dockerfile
+# Copy package files first for layer caching
+COPY package*.json ./
+RUN npm install
+
+# Copy application source code
+COPY . .
+```
+
+### Exposed Ports
+
+<ParamField path="EXPOSE" type="number" default="3000">
+  The internal container port where the Node.js application listens.
+  
+  ```dockerfile
+  EXPOSE 3000
+  ```
+</ParamField>
+
+### Application Startup
+
+The container runs the Node.js application using:
+
+```dockerfile
+CMD ["node", "index.js"]
+```
+
+## Port Mapping
+
+When the container is deployed, the Jenkins pipeline maps ports as follows:
+
+<ParamField path="External Port" type="number" default="80">
+  The port accessible from outside the container (public-facing).
+</ParamField>
+
+<ParamField path="Internal Port" type="number" default="3000">
+  The port where the Node.js application runs inside the container.
+</ParamField>
+
+### Port Mapping Configuration
+
+The deployment stage maps port 80 (external) to port 3000 (internal):
+
+```bash
+docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest
+```
+
+**Access the application:**
+- External: `http://<server-ip>:80` or `http://<server-ip>`
+- Internal: `http://localhost:3000` (within container)
+
+## Complete Dockerfile
+
+```dockerfile
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy files
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Run app
+CMD ["node", "index.js"]
+```
+
+## Docker Build Process
+
+The Jenkins pipeline builds the Docker image in the Build stage:
+
+```groovy
+stage('Build') {
+    steps {
+        echo 'Building Docker image...'
+        sh 'docker build -t $IMAGE_NAME:latest .'
+        echo 'Docker image built successfully!'
+    }
+}
+```
+
+## Customization Options
+
+### Changing Node.js Version
+
+To use a different Node.js version, modify the base image:
+
+```dockerfile
+FROM node:20-alpine  # Use Node.js 20
+FROM node:18-slim    # Use Debian-based image
+```
+
+### Changing Port Mappings
+
+Modify the deploy command in the Jenkinsfile:
+
+```groovy
+sh 'docker run --name Jenkins -d -p 8080:3000 $IMAGE_NAME:latest'
+```

@@ -1,0 +1,97 @@
+---
+title: Testing the Pipeline
+description: Learn how to test your Jenkins CI/CD pipeline and verify deployments
+---
+
+This guide walks you through testing your Jenkins CI/CD pipeline after setup is complete.
+
+## Overview
+
+Once your Jenkins pipeline is configured, you can test it by pushing code changes to your GitHub repository. Jenkins will automatically detect the changes and execute the pipeline stages.
+
+## Testing Workflow
+
+<Steps>
+  <Step title="Push Code to GitHub">
+    Make a change to your application code and push it to the GitHub repository:
+    
+    ```bash
+    git add .
+    git commit -m "Test Jenkins pipeline"
+    git push origin main
+    ```
+    
+    The GitHub webhook will automatically notify Jenkins of the new commit.
+  </Step>
+
+  <Step title="Monitor Jenkins Dashboard">
+    Navigate to your Jenkins dashboard to monitor the pipeline execution:
+    
+    1. Open Jenkins at `http://<ec2-public-ip>:8080`
+    2. Click on your pipeline project
+    3. Watch the build progress in real-time
+    4. View the console output for detailed logs
+    
+    The pipeline will execute these stages:
+    - **Clone**: Pulls the latest code from GitHub
+    - **Build**: Creates a Docker image for the Node.js app
+    - **Test**: Runs npm tests (if defined)
+    - **Deploy**: Launches the Docker container on port 80
+  </Step>
+
+  <Step title="Check Build Status">
+    Review the build results on the Jenkins dashboard:
+    
+    - Green checkmark indicates successful build
+    - Red X indicates a failed build
+    - Click on the build number to view detailed logs
+    - Check the "Console Output" for stage-by-stage execution details
+  </Step>
+
+  <Step title="Access the Deployed Application">
+    Once the pipeline completes successfully, access your deployed application:
+    
+    ```
+    http://<ec2-public-ip>
+    ```
+    
+    You should see the response: "Hello, Jenkins CI/CD!"
+    
+    <Note>
+      Make sure port 80 is open in your EC2 security group inbound rules.
+    </Note>
+  </Step>
+
+  <Step title="Verify Docker Container">
+    SSH into your EC2 instance and verify the container is running:
+    
+    ```bash
+    docker ps
+    ```
+    
+    You should see the `nodejs-demo-app` container running and mapped to port 80.
+  </Step>
+</Steps>
+
+## What to Expect
+
+When the pipeline runs successfully, you'll see:
+
+- All stages marked as green/passed in Jenkins
+- Console output showing successful Docker image build
+- Container running on port 80
+- Application accessible via browser
+- Post-build success message: "CI/CD pipeline ran successfully!"
+
+## Next Steps
+
+After confirming your pipeline works:
+
+- Set up additional test cases in your `package.json`
+- Add notifications for build failures
+- Configure deployment to multiple environments
+- Implement rollback strategies
+
+<Tip>
+  Bookmark your Jenkins dashboard and application URL for quick access during development.
+</Tip>

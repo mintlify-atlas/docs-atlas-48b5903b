@@ -1,0 +1,228 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for Jenkins CI/CD pipeline
+---
+
+This guide covers common issues you may encounter when setting up and running your Jenkins CI/CD pipeline, along with their solutions.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Docker Permission Denied Error">
+    **Problem**: Jenkins build fails with a permission denied error when trying to run Docker commands.
+    
+    **Error Message**:
+    ```
+    Got permission denied while trying to connect to the Docker daemon socket
+    ```
+    
+    **Solution**: Add the Jenkins user to the Docker group:
+    
+    ```bash
+    sudo usermod -aG docker jenkins
+    sudo systemctl restart jenkins
+    ```
+    
+    After running these commands, restart your Jenkins service and trigger a new build.
+    
+    <Warning>
+      You must restart Jenkins after adding the user to the Docker group for the changes to take effect.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="GitHub Webhook Not Triggering Builds">
+    **Problem**: Pushing code to GitHub doesn't automatically trigger the Jenkins pipeline.
+    
+    **Possible Causes**:
+    - Webhook not configured correctly in GitHub
+    - Jenkins URL not accessible from GitHub
+    - Wrong payload URL in webhook settings
+    
+    **Solution**:
+    
+    1. Verify webhook configuration in GitHub:
+       - Go to your repository → Settings → Webhooks
+       - Payload URL should be: `http://<ec2-public-ip>:8080/github-webhook/`
+       - Content type: `application/json`
+       - Events: Select "Just the push event"
+    
+    2. Check Jenkins is accessible:
+       ```bash
+       curl http://<ec2-public-ip>:8080
+       ```
+    
+    3. Verify EC2 security group allows inbound traffic on port 8080
+    
+    4. Check webhook delivery history in GitHub for error messages
+  </Accordion>
+
+  <Accordion title="Build Fails: Port Already in Use">
+    **Problem**: Deploy stage fails because port 80 is already in use.
+    
+    **Error Message**:
+    ```
+    docker: Error response from daemon: driver failed programming external connectivity on endpoint Jenkins: 
+    Bind for 0.0.0.0:80 failed: port is already allocated
+    ```
+    
+    **Solution**: Stop and remove the existing container:
+    
+    ```bash
+    docker stop Jenkins
+    docker rm Jenkins
+    ```
+    
+    Or modify your Jenkinsfile to remove old containers before deploying:
+    
+    ```groovy
+    stage('Deploy') {
+        steps {
+            echo 'Stopping old container...'
+            sh 'docker stop Jenkins || true'
+            sh 'docker rm Jenkins || true'
+            echo 'Deploying Docker container...'
+            sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+            echo 'App deployed on port 80!'
+        }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="npm Install or Test Failures">
+    **Problem**: The Test stage fails during npm install or npm test.
+    
+    **Common Causes**:
+    - Missing `package.json` in the repository
+    - No test scripts defined
+    - Network issues downloading dependencies
+    
+    **Solution**:
+    
+    1. Ensure `package.json` exists in your repository root
+    
+    2. If you don't have tests yet, the Jenkinsfile already handles this:
+       ```groovy
+       sh 'npm test || echo "No tests defined or test failed, continuing..."'
+       ```
+    
+    3. For network issues, check internet connectivity from EC2:
+       ```bash
+       curl -I https://registry.npmjs.org
+       ```
+  </Accordion>
+
+  <Accordion title="Docker Image Build Fails">
+    **Problem**: Build stage fails when creating the Docker image.
+    
+    **Common Causes**:
+    - Missing or incorrect Dockerfile
+    - Syntax errors in Dockerfile
+    - Docker daemon not running
+    
+    **Solution**:
+    
+    1. Verify Dockerfile exists in repository root
+    
+    2. Check Docker daemon status:
+       ```bash
+       sudo systemctl status docker
+       ```
+    
+    3. Start Docker if it's not running:
+       ```bash
+       sudo systemctl start docker
+       ```
+    
+    4. Test Docker image build manually:
+       ```bash
+       docker build -t nodejs-demo-app:latest .
+       ```
+  </Accordion>
+
+  <Accordion title="Cannot Access Application on Port 80">
+    **Problem**: Pipeline succeeds but application is not accessible at `http://<ec2-public-ip>`.
+    
+    **Solution**:
+    
+    1. Check EC2 security group inbound rules:
+       - Port 80 (HTTP) should be open to 0.0.0.0/0 or your IP
+    
+    2. Verify container is running:
+       ```bash
+       docker ps | grep Jenkins
+       ```
+    
+    3. Check container logs:
+       ```bash
+       docker logs Jenkins
+       ```
+    
+    4. Test locally on EC2 instance:
+       ```bash
+       curl http://localhost
+       ```
+    
+    5. Ensure the application is listening on the correct port (3000 internally, mapped to 80 externally)
+  </Accordion>
+
+  <Accordion title="Jenkins Service Won't Start">
+    **Problem**: Jenkins service fails to start or crashes.
+    
+    **Solution**:
+    
+    1. Check Jenkins logs:
+       ```bash
+       sudo journalctl -u jenkins -n 50
+       ```
+    
+    2. Verify Java is installed:
+       ```bash
+       java -version
+       ```
+    
+    3. Check available disk space:
+       ```bash
+       df -h
+       ```
+    
+    4. Restart Jenkins:
+       ```bash
+       sudo systemctl restart jenkins
+       ```
+    
+    5. If port 8080 is in use, change Jenkins port in `/etc/default/jenkins`
+  </Accordion>
+</AccordionGroup>
+
+## General Debugging Tips
+
+<CardGroup cols={2}>
+  <Card title="Check Console Output" icon="terminal">
+    Always review the full console output in Jenkins for detailed error messages and stack traces.
+  </Card>
+  
+  <Card title="Verify Prerequisites" icon="list-check">
+    Ensure Docker, Jenkins, and required plugins are properly installed and running.
+  </Card>
+  
+  <Card title="Test Components Individually" icon="flask">
+    Test Docker builds and npm commands manually before running the full pipeline.
+  </Card>
+  
+  <Card title="Review Logs" icon="file-lines">
+    Check Jenkins logs, Docker logs, and application logs for detailed error information.
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you continue to experience issues:
+
+1. Review the complete console output in Jenkins
+2. Check all relevant log files
+3. Verify your configuration matches the setup guide
+4. Search for similar issues in Jenkins and Docker documentation
+
+<Tip>
+  Most issues can be resolved by carefully reading error messages and checking that all services have proper permissions and are running.
+</Tip>

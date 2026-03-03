@@ -1,0 +1,169 @@
+---
+title: Docker Configuration
+description: Configure Docker and set up permissions for the Jenkins user
+---
+
+This guide covers Docker installation and the critical permission configuration required for Jenkins to build and run Docker containers.
+
+## Overview
+
+Docker is used to containerize the Node.js application. The Jenkins user needs proper permissions to execute Docker commands as part of the CI/CD pipeline.
+
+## Install Docker
+
+<Steps>
+  <Step title="Update Package Index">
+    ```bash
+    sudo apt update
+    ```
+  </Step>
+  
+  <Step title="Install Prerequisites">
+    Install packages to allow apt to use a repository over HTTPS:
+    
+    ```bash
+    sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+    ```
+  </Step>
+  
+  <Step title="Add Docker's GPG Key">
+    ```bash
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    ```
+  </Step>
+  
+  <Step title="Add Docker Repository">
+    ```bash
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    ```
+  </Step>
+  
+  <Step title="Install Docker Engine">
+    ```bash
+    sudo apt update
+    sudo apt install docker-ce docker-ce-cli containerd.io -y
+    ```
+  </Step>
+  
+  <Step title="Verify Installation">
+    Check that Docker is installed correctly:
+    
+    ```bash
+    sudo docker --version
+    sudo docker run hello-world
+    ```
+  </Step>
+</Steps>
+
+## Configure Docker Permissions for Jenkins
+
+<Warning>
+This is a critical step. Without proper permissions, Jenkins will fail to execute Docker commands in the pipeline.
+</Warning>
+
+The Jenkins user must be added to the Docker group to execute Docker commands without sudo privileges.
+
+<Steps>
+  <Step title="Add Jenkins to Docker Group">
+    Run the following command to add the `jenkins` user to the `docker` group:
+    
+    ```bash
+    sudo usermod -aG docker jenkins
+    ```
+    
+    This command modifies the user (`usermod`) and appends (`-aG`) the jenkins user to the docker group.
+  </Step>
+  
+  <Step title="Restart Jenkins">
+    Restart the Jenkins service for the changes to take effect:
+    
+    ```bash
+    sudo systemctl restart jenkins
+    ```
+  </Step>
+  
+  <Step title="Verify Permissions">
+    Verify that the Jenkins user can run Docker commands:
+    
+    ```bash
+    sudo -u jenkins docker ps
+    ```
+    
+    If successful, you should see a list of running containers (or an empty list if no containers are running).
+  </Step>
+</Steps>
+
+<Note>
+If you encounter permission issues, you may need to restart the Docker daemon:
+
+```bash
+sudo systemctl restart docker
+sudo systemctl restart jenkins
+```
+</Note>
+
+## Understanding the Dockerfile
+
+The project uses a Dockerfile to containerize the Node.js application. Here's the breakdown:
+
+```dockerfile
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy files
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Run app
+CMD ["node", "index.js"]
+```
+
+### Key Components
+
+- **Base Image**: `node:18-alpine` - Lightweight Node.js 18 image
+- **Working Directory**: `/app` - All commands execute in this directory
+- **Dependencies**: Install npm packages before copying source code (layer caching optimization)
+- **Port**: Exposes port 3000 (mapped to port 80 during deployment)
+- **Command**: Runs `node index.js` to start the application
+
+## Pipeline Usage
+
+The Jenkins pipeline uses Docker in the following stages:
+
+### Build Stage
+
+```groovy
+stage('Build') {
+    steps {
+        echo 'Building Docker image...'
+        sh 'docker build -t $IMAGE_NAME:latest .'
+        echo 'Docker image built successfully!'
+    }
+}
+```
+
+### Deploy Stage
+
+```groovy
+stage('Deploy') {
+    steps {
+        echo 'Deploying Docker container...'
+        sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+        echo 'App deployed on port 80!'
+    }
+}
+```
+
+<Note>
+The image name is defined as an environment variable: `IMAGE_NAME = 'nodejs-demo-app'`
+</Note>
+
+## Next Steps
+
+With Docker configured, proceed to [GitHub Integration](/setup/github-integration) to set up automated builds triggered by code commits.

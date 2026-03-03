@@ -1,0 +1,272 @@
+---
+title: Jenkinsfile Reference
+description: Complete Jenkinsfile breakdown with code examples and detailed explanations
+---
+
+## Complete Jenkinsfile
+
+Below is the complete Jenkinsfile used in this CI/CD pipeline:
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'nodejs-demo-app'
+    }
+
+    stages {
+        stage('Clone') {
+            steps {
+                echo 'Cloning the repository...'
+                git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME:latest .'
+                echo 'Docker image built successfully!'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'npm install'
+                sh 'npm test || echo "No tests defined or test failed, continuing..."'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Docker container...'
+                sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+                echo 'App deployed on port 80!'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'CI/CD pipeline ran successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
+```
+
+## Pipeline Block Structure
+
+### Agent Declaration
+
+```groovy
+agent any
+```
+
+<Info>
+The `agent any` directive tells Jenkins to execute this pipeline on any available agent. For production environments, consider using specific agent labels to ensure consistent build environments.
+</Info>
+
+### Environment Variables
+
+```groovy
+environment {
+    IMAGE_NAME = 'nodejs-demo-app'
+}
+```
+
+<ParamField path="IMAGE_NAME" type="string" default="nodejs-demo-app">
+  Defines the Docker image name used in the Build and Deploy stages. This variable is accessible throughout the pipeline using `$IMAGE_NAME`.
+</ParamField>
+
+## Stages Breakdown
+
+<Tabs>
+  <Tab title="Clone Stage">
+    ```groovy
+    stage('Clone') {
+        steps {
+            echo 'Cloning the repository...'
+            git branch: 'main', url: 'https://github.com/mani-6666/Jenkins-Pipeline-for-CI-CD.git'
+        }
+    }
+    ```
+
+    **Purpose**: Clones the source code from the GitHub repository.
+
+    **Key Parameters**:
+    - `branch`: Specifies the `main` branch
+    - `url`: GitHub repository URL
+
+    <Note>
+    The git checkout happens in the Jenkins workspace directory automatically.
+    </Note>
+  </Tab>
+
+  <Tab title="Build Stage">
+    ```groovy
+    stage('Build') {
+        steps {
+            echo 'Building Docker image...'
+            sh 'docker build -t $IMAGE_NAME:latest .'
+            echo 'Docker image built successfully!'
+        }
+    }
+    ```
+
+    **Purpose**: Builds a Docker image from the Dockerfile in the repository.
+
+    **Docker Command**:
+    - `-t $IMAGE_NAME:latest`: Tags the image as `nodejs-demo-app:latest`
+    - `.`: Uses the current directory as build context
+
+    <Warning>
+    Ensure the Jenkins agent has Docker installed and the Jenkins user has permissions to run Docker commands.
+    </Warning>
+  </Tab>
+
+  <Tab title="Test Stage">
+    ```groovy
+    stage('Test') {
+        steps {
+            echo 'Running tests...'
+            sh 'npm install'
+            sh 'npm test || echo "No tests defined or test failed, continuing..."'
+        }
+    }
+    ```
+
+    **Purpose**: Installs Node.js dependencies and runs the test suite.
+
+    **Commands**:
+    1. `npm install`: Installs all dependencies from package.json
+    2. `npm test || echo ...`: Runs tests but continues pipeline even if tests fail
+
+    <Tip>
+    The `|| echo` fallback ensures the pipeline doesn't fail if no tests are defined. For production, consider removing this to enforce test requirements.
+    </Tip>
+  </Tab>
+
+  <Tab title="Deploy Stage">
+    ```groovy
+    stage('Deploy') {
+        steps {
+            echo 'Deploying Docker container...'
+            sh 'docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest'
+            echo 'App deployed on port 80!'
+        }
+    }
+    ```
+
+    **Purpose**: Deploys the Docker container and exposes it on port 80.
+
+    **Docker Run Parameters**:
+    - `--name Jenkins`: Names the container "Jenkins"
+    - `-d`: Runs container in detached mode
+    - `-p 80:3000`: Maps host port 80 to container port 3000
+    - `$IMAGE_NAME:latest`: Uses the image built in the Build stage
+  </Tab>
+</Tabs>
+
+## Post-Build Actions
+
+```groovy
+post {
+    always {
+        echo 'Pipeline completed!'
+    }
+    success {
+        echo 'CI/CD pipeline ran successfully!'
+    }
+    failure {
+        echo 'Pipeline failed. Check logs for details.'
+    }
+}
+```
+
+### Post Conditions
+
+<Tabs>
+  <Tab title="always">
+    Executes **every time** the pipeline runs, regardless of success or failure.
+
+    **Use cases**:
+    - Cleanup operations
+    - Notifications
+    - Logging
+    - Resource deallocation
+  </Tab>
+
+  <Tab title="success">
+    Executes **only when** all stages complete successfully.
+
+    **Use cases**:
+    - Success notifications
+    - Deployment confirmations
+    - Metrics reporting
+    - Triggering downstream jobs
+  </Tab>
+
+  <Tab title="failure">
+    Executes **only when** any stage fails.
+
+    **Use cases**:
+    - Error notifications
+    - Rollback operations
+    - Debug information collection
+    - Alert escalation
+  </Tab>
+</Tabs>
+
+## Customization Options
+
+### Adding Credentials
+
+For private repositories, add credentials:
+
+```groovy
+stage('Clone') {
+    steps {
+        git branch: 'main', 
+            url: 'https://github.com/your-org/repo.git',
+            credentialsId: 'github-credentials'
+    }
+}
+```
+
+### Environment-Specific Deployment
+
+```groovy
+environment {
+    IMAGE_NAME = 'nodejs-demo-app'
+    DEPLOY_ENV = 'production'
+    PORT = '80'
+}
+```
+
+### Adding Build Parameters
+
+```groovy
+parameters {
+    string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Branch to build')
+    choice(name: 'ENVIRONMENT', choices: ['dev', 'staging', 'prod'], description: 'Target environment')
+}
+```
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Stage Details" icon="layer-group" href="/pipeline/stages">
+    Detailed documentation of each pipeline stage
+  </Card>
+  <Card title="Deployment Process" icon="rocket" href="/pipeline/deployment">
+    Learn about Docker deployment and port mapping
+  </Card>
+</CardGroup>

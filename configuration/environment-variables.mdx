@@ -1,0 +1,60 @@
+---
+title: Environment Variables
+description: Configure environment variables for the Jenkins CI/CD pipeline
+---
+
+## Overview
+
+The Jenkins pipeline uses environment variables to manage Docker image naming and other configuration settings. These variables are defined in the `environment` block of the Jenkinsfile.
+
+## Pipeline Environment Variables
+
+<ParamField path="IMAGE_NAME" type="string" default="nodejs-demo-app">
+  The name of the Docker image to build and deploy. This variable is used throughout the pipeline stages for building and running the container.
+  
+  **Usage in pipeline:**
+  - Build stage: `docker build -t $IMAGE_NAME:latest .`
+  - Deploy stage: `docker run --name Jenkins -d -p 80:3000 $IMAGE_NAME:latest`
+</ParamField>
+
+## Configuration Example
+
+Here's how environment variables are configured in the Jenkinsfile:
+
+```groovy
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'nodejs-demo-app'
+    }
+
+    stages {
+        // Pipeline stages...
+    }
+}
+```
+
+## Adding Custom Environment Variables
+
+To add additional environment variables to your pipeline:
+
+1. Open the `Jenkinsfile` in your repository
+2. Add variables to the `environment` block:
+
+```groovy
+environment {
+    IMAGE_NAME = 'nodejs-demo-app'
+    CONTAINER_NAME = 'my-app-container'
+    PORT_MAPPING = '80:3000'
+}
+```
+
+3. Reference variables in your pipeline stages using `$VARIABLE_NAME` syntax
+
+## Best Practices
+
+- Use descriptive variable names that clearly indicate their purpose
+- Store sensitive data (credentials, API keys) using Jenkins Credentials instead of plain environment variables
+- Document all custom environment variables in your project documentation
+- Use consistent naming conventions (uppercase with underscores)
