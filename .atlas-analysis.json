@@ -1,0 +1,90 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "Jenkins CI/CD Pipeline",
+  "projectDescription": "A complete CI/CD pipeline demonstration using Jenkins to automate the build, test, and deployment of a Node.js application with Docker.",
+  "theme": "aspen",
+  "primaryColor": "#D33833",
+  "lightColor": "#F0F4F8",
+  "darkColor": "#1A1A1A",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Setup Guide",
+            "pages": [
+              "setup/prerequisites",
+              "setup/jenkins-installation",
+              "setup/docker-configuration",
+              "setup/github-integration"
+            ]
+          },
+          {
+            "group": "Pipeline",
+            "pages": [
+              "pipeline/overview",
+              "pipeline/jenkinsfile",
+              "pipeline/stages",
+              "pipeline/deployment"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/docker-settings",
+              "configuration/webhooks"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/testing-pipeline",
+              "guides/troubleshooting",
+              "guides/aws-ec2-setup"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Pipeline Reference",
+            "pages": [
+              "reference/jenkinsfile-syntax",
+              "reference/docker-commands",
+              "reference/nodejs-app"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automated CI/CD pipeline with Jenkins",
+    "Docker containerization for Node.js applications",
+    "GitHub webhook integration for automatic builds",
+    "Multi-stage pipeline (Clone, Build, Test, Deploy)",
+    "AWS EC2 deployment ready",
+    "Simple Node.js Express application example"
+  ],
+  "publicApiSurface": [
+    "Jenkinsfile - Declarative pipeline with Clone, Build, Test, Deploy stages",
+    "Dockerfile - Node.js 18 Alpine base with Express app",
+    "Environment: IMAGE_NAME variable",
+    "Pipeline stages: Clone, Build, Test, Deploy",
+    "Post-build actions: always, success, failure hooks",
+    "Docker image: nodejs-demo-app:latest",
+    "Container deployment: Port 80 (external) → 3000 (internal)",
+    "Express endpoint: GET / - Hello message"
+  ]
+}
